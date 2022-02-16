@@ -24,6 +24,7 @@ struct Relay
 
 void Relaybegin(relay *r)
 {
+    Serial.println("Relay Strted");
     pinMode(r->pin, OUTPUT);
     if (r->state)
     {
