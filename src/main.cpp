@@ -1,15 +1,17 @@
-#include <Arduino.h>
+#include "DHTesp.h" // Click here to get the library: http://librarymanager/All#DHTesp
 #include "relay.h"
-#include "DHT.h"
+#include <Arduino.h>
 
-#define DHTPIN 3 // Digital pin connected to the DHT sensor
-#define DHTTYPE DHT22 // DHT 22  (AM2302), AM2321
+#ifdef ESP32
+#pragma message(THIS EXAMPLE IS FOR ESP8266 ONLY !)
+#error Select ESP8266 board.
+#endif
+
+DHTesp dht;
 #define SensorPin A0
 
-
-DHT dht(DHTPIN, DHTTYPE);
-RELAY_INIT(SolenoidValve, 0, False);
-RELAY_INIT(Pump, 1, False);
+RELAY_INIT(SolenoidValve, 16, false);
+RELAY_INIT(Pump, 5, false);
 
 #define BLYNK_TEMPLATE_ID "TMPLRTBGZAnH"
 #define BLYNK_DEVICE_NAME "Green House"
@@ -17,10 +19,10 @@ RELAY_INIT(Pump, 1, False);
 
 // Comment this out to disable prints and save space
 #define BLYNK_PRINT Serial
-// #define BLYNK_DEBUG        
+// #define BLYNK_DEBUG
 
-#include <ESP8266WiFi.h>
 #include <BlynkSimpleEsp8266.h>
+#include <ESP8266WiFi.h>
 
 char auth[] = BLYNK_AUTH_TOKEN;
 
@@ -29,55 +31,38 @@ char pass[] = "kde8vf1qws1";
 
 BlynkTimer timer;
 
-float *dhtRead()
-{
-  float h = dht.readHumidity();
-  float t = dht.readTemperature();
-  if (isnan(h) || isnan(t))
-  {
-    Serial.println(F("Failed to read from DHT sensor!"));
-  }
-  float hic = dht.computeHeatIndex(t, h, false);
-  static float result[3] = {h, t, hic};
-  return result;
-}
-
-void dhtControll()
-{
-  float *result = dhtRead();
-  Blynk.virtualWrite(V0, result[0]);
-  Blynk.virtualWrite(V1, result[1]);
-  if (!Pump.inProgres && (result[0] < 50 || result[1] > 30))
-  {
-    Pump.Control(&Pump, 30 * 60);
+void dhtControll() {
+  // delay(dht.getMinimumSamplingPeriod());
+  float humidity = dht.getHumidity();
+  float temperature = dht.getTemperature();
+  Blynk.virtualWrite(V0, temperature);
+  Blynk.virtualWrite(V1, humidity);
+  if (!Pump.inProgres && ((int) temperature  > 20 || (int) humidity < 20)) {
+    Pump.Control(&Pump, 1 * 60);
   }
 }
 
-void SoilMoisture(){
+void SoilMoisture() {
   float sensorValue = analogRead(SensorPin), output;
   output = map(sensorValue, 0, 1023, 0, 255);
   Blynk.virtualWrite(V2, output);
-  if (!SolenoidValve.inProgres && ((int) output < 50 || (int) output > 30))
-  {
+  if (!SolenoidValve.inProgres && ((int)output < 50 || (int)output > 30)) {
     SolenoidValve.Control(&SolenoidValve, 5 * 60);
   }
 }
 
-
-
-void setup()
-{
+void setup() {
   Serial.begin(115200);
   Blynk.begin(auth, ssid, pass);
-  dht.begin();
+  dht.setup(2, DHTesp::DHT11); // Connect DHT sensor to GPIO 17
+
   SolenoidValve.begin(&SolenoidValve);
   Pump.begin(&Pump);
   timer.setInterval(1000L, dhtControll);
-  timer.setInterval(1000L, SoilMoisture);
+  // timer.setInterval(1000L, SoilMoisture);
 }
 
-void loop()
-{
+void loop() {
   Blynk.run();
   timer.run();
 }

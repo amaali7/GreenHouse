@@ -6,12 +6,6 @@
 #define RELAY_INIT(rel, p, state) relay rel = {(int) p, (bool) state, false,Relaybegin, Control};
 
 
-typedef enum State
-{
-    False,
-    True
-} Type;
-
 typedef struct Relay relay;
 struct Relay
 {
@@ -34,6 +28,7 @@ void Relaybegin(relay *r)
     {
         digitalWrite(r->pin, LOW);
     }
+    r->inProgres = false;
 }
 
 
